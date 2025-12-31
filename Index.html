@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Limitations & LangChain Solutions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --color-primary: #06b6d4;
+            --color-primary-dark: #0891b2;
+            --color-bg: #f0f9ff;
+            --color-surface: #ffffff;
+            --color-text: #0c2d4d;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0c1e3d 0%, #1a3a52 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #e0e8f0;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #06dcff 0%, #00d4ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .limitation-card {
+            border-left: 4px solid #ef4444;
+            transition: all 0.3s ease;
+        }
+
+        .limitation-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15);
+        }
+
+        .solution-card {
+            border-left: 4px solid #10b981;
+            transition: all 0.3s ease;
+        }
+
+        .solution-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15);
+        }
+
+        .tab-button {
+            position: relative;
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: #94a3b8;
+            transition: color 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: #06dcff;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #06b6d4;
+            border-radius: 2px;
+        }
+
+        .architecture-box {
+            background: linear-gradient(135deg, #0f2744 0%, #1a3a52 100%);
+            border: 2px solid #06dcff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .flow-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #06dcff;
+            margin: 0.5rem 0;
+        }
+
+        .token-meter {
+            background: linear-gradient(90deg, #fca5a5 0%, #fb923c 50%, #fbbf24 100%);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .token-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+            transition: width 0.4s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const LLMExplorer = () => {
+            const [activeTab, setActiveTab] = useState('overview');
+            const [selectedLimitation, setSelectedLimitation] = useState(0);
+            const [tokenUsage, setTokenUsage] = useState(35);
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setTokenUsage(prev => (prev + 5) % 100);
+                }, 1000);
+                return () => clearInterval(interval);
+            }, []);
+
+            const limitations = [
+                {
+                    title: 'Context Window Limitation',
+                    description: 'LLMs can only process a fixed maximum number of tokens (subword units) at once.',
+                    problem: 'Conversations exceeding the limit lose earlier information, causing the model to ignore crucial context.',
+                    impact: 'Multi-turn conversations degrade, long documents require splitting, and the model loses track of earlier interactions.',
+                    tokens: { current: 2048, max: 4096 },
+                    example: 'A 200-page legal document exceeds most LLM context windows, forcing manual chunking.',
+                    langchainSolution: 'LangChain + RAG: Splits documents into semantic chunks, stores embeddings, retrieves only relevant passages at query time.'
+                },
+                {
+                    title: 'Hallucinations',
+                    description: 'LLMs confidently generate false information that seems plausible but is factually incorrect.',
+                    problem: 'The model fills knowledge gaps by guessing, especially when context is vague, ambiguous, or insufficient.',
+                    impact: 'Unreliable outputs in critical domains (healthcare, law, finance). Users cannot trust the model\'s assertions.',
+                    example: 'Query: "What are the Q3 2025 revenues of Company X?" → Model invents a number instead of saying "I don\'t have that data."',
+                    langchainSolution: 'RAG + Vector Search: Ground responses in retrieved documents. ReAct Agent Pattern: Allow the model to reason and use tools before answering.'
+                },
+                {
+                    title: 'Token Inefficiency',
+                    description: 'Every word/subword consumes tokens. Longer prompts and redundant instructions waste budget.',
+                    problem: 'Poor prompt design and unoptimized chunking reduce effective use of limited token space.',
+                    impact: 'Higher costs, slower latency, and less room for output. Models can\'t retrieve as much context.',
+                    example: 'Repeating the same instruction in every prompt wastes tokens; a template could save 50+ tokens per call.',
+                    langchainSolution: 'Prompt templates minimize repetition. Recursive text splitters with smart chunking (e.g., markdown-aware). Token counters for budget tracking.'
+                },
+                {
+                    title: 'Reasoning Limits',
+                    description: 'LLMs struggle with complex, multi-step reasoning, especially when requiring tool use or external data.',
+                    problem: 'Single-shot prompts cannot handle workflows needing intermediate verifications, calculations, or API calls.',
+                    impact: 'Cannot build autonomous agents for complex tasks. Multi-step problems fail or produce incorrect intermediate steps.',
+                    example: 'Calculating a mortgage with tax implications, market lookup, AND document review in one prompt fails.',
+                    langchainSolution: 'Agents with function calling: Chain model calls, tool invocations, and feedback loops. LangGraph for stateful orchestration.'
+                },
+                {
+                    title: 'No Persistent Memory',
+                    description: 'LLMs are stateless—they don\'t retain information across separate API calls without explicit storage.',
+                    problem: 'Each interaction starts fresh. Without memory, the model can\'t learn user preferences or maintain conversation context.',
+                    impact: 'Chatbots can\'t remember who the user is across sessions. Personal assistants can\'t adapt over time.',
+                    example: 'User tells the model "I\'m allergic to peanuts" in session 1. In session 2, the model suggests a peanut recipe.',
+                    langchainSolution: 'Memory systems: ConversationBufferMemory, ConversationSummaryMemory, and vector databases store session/user data. Checkpointers persist state.'
+                },
+                {
+                    title: 'Lost-in-the-Middle Effect',
+                    description: 'Models attend better to information at the start and end of long prompts, ignoring mid-stream details.',
+                    problem: 'Critical information placed in the middle of a large context window is under-weighted by the attention mechanism.',
+                    impact: 'Document analysis fails when key facts are buried. Retrieval ordering becomes critical.',
+                    example: 'In a 100-page document, the crucial legal clause on page 50 is overlooked in favor of title and conclusion.',
+                    langchainSolution: 'Retrieve and reorder: Place most relevant chunks first or last. Use re-ranking algorithms to prioritize high-signal passages.'
+                }
+            ];
+
+            const langchainFeatures = [
+                {
+                    category: 'Agents & Orchestration',
+                    features: [
+                        { name: 'create_agent (v1)', desc: 'Modern unified agent creation API replacing legacy patterns.' },
+                        { name: 'Tool Integration', desc: 'Built-in function calling for web search, calculators, APIs, and custom tools.' },
+                        { name: 'ReAct Pattern', desc: 'Reason→Act→Observe loops for complex task decomposition.' },
+                        { name: 'LangGraph', desc: 'Stateful, graph-based orchestration with built-in memory and checkpointing.' }
+                    ]
+                },
+                {
+                    category: 'Memory & State',
+                    features: [
+                        { name: 'ConversationBufferMemory', desc: 'Stores raw conversation history for short-term context.' },
+                        { name: 'ConversationSummaryMemory', desc: 'Compresses history via summarization to preserve context in long chats.' },
+                        { name: 'Vector Store Memory', desc: 'Semantic search over memories using embeddings (Pinecone, Chroma, Weaviate).' },
+                        { name: 'Checkpointing', desc: 'Persists agent state to resume conversations across sessions.' }
+                    ]
+                },
+                {
+                    category: 'Retrieval-Augmented Generation (RAG)',
+                    features: [
+                        { name: 'Document Loaders', desc: 'Ingests PDFs, CSVs, web pages, and markdown into vector stores.' },
+                        { name: 'RecursiveCharacterSplitter', desc: 'Smart chunking respecting semantic boundaries (code, markdown, text).' },
+                        { name: 'Embedding & Indexing', desc: 'Converts documents to embeddings and indexes in vector databases.' },
+                        { name: 'Retrieval & Re-ranking', desc: 'Semantic search to find relevant chunks; re-rank to order by relevance.' }
+                    ]
+                },
+                {
+                    category: 'Prompt Engineering',
+                    features: [
+                        { name: 'Prompt Templates', desc: 'Reusable, parameterized prompts minimize redundancy and token waste.' },
+                        { name: 'Few-Shot Learning', desc: 'In-context examples guide the model behavior without fine-tuning.' },
+                        { name: 'Output Parsing', desc: 'Structured extraction: JSON, Pydantic, custom formats.' },
+                        { name: 'Chain of Thought (CoT)', desc: 'Forces step-by-step reasoning, improving accuracy on complex tasks.' }
+                    ]
+                }
+            ];
+
+            const architectureFlow = [
+                { step: '1. Input', desc: 'User Query (text, documents, or commands)' },
+                { step: '2. Memory Check', desc: 'Retrieve conversation history & user context from store' },
+                { step: '3. Routing', desc: 'Determine: RAG needed? Tools required? Direct LLM call?' },
+                { step: '4. Retrieval (if RAG)', desc: 'Semantic search for relevant documents/data' },
+                { step: '5. Tool Call (if needed)', desc: 'Execute external APIs, search, calculations' },
+                { step: '6. Prompt Assembly', desc: 'Build optimized prompt with context, retrieved data, examples' },
+                { step: '7. LLM Generation', desc: 'Model generates response with structured format' },
+                { step: '8. Verification', desc: 'Check for hallucinations, cite sources, validate output' },
+                { step: '9. Memory Update', desc: 'Store conversation turn, embeddings, and decision artifacts' },
+                { step: '10. Stream Response', desc: 'Stream output to user with citations and confidence scores' }
+            ];
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-900 p-4 md:p-8">
+                    {/* Header */}
+                    <div className="max-w-6xl mx-auto mb-8">
+                        <div className="text-center mb-8">
+                            <h1 className="text-5xl md:text-6xl font-bold gradient-text mb-4">
+                                LLM Limitations & LangChain Solutions
+                            </h1>
+                            <p className="text-lg text-slate-600 max-w-3xl mx-auto">
+                                Understand the constraints of Large Language Models and how LangChain frameworks overcome them with memory, retrieval, agents, and orchestration.
+                            </p>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex flex-wrap gap-2 justify-center mb-8 bg-blue-900 rounded-lg p-2 shadow-lg border border-cyan-500/30">
+                            {[
+                                { id: 'overview', label: '📋 Overview' },
+                                { id: 'limitations', label: '⚠️ LLM Limitations' },
+                                { id: 'solutions', label: '✨ LangChain Solutions' },
+                                { id: 'architecture', label: '🏗️ Architecture' }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="max-w-6xl mx-auto">
+                        {/* Overview Tab */}
+                        {activeTab === 'overview' && (
+                            <div className="space-y-6">
+                                <div className="bg-blue-900 rounded-lg p-6 md:p-8 shadow-lg border border-cyan-500/20">
+                                    <h2 className="text-3xl font-bold text-cyan-100 mb-4">What is LangChain?</h2>
+                                    <p className="text-blue-100 mb-4 leading-relaxed">
+                                        LangChain is an open-source framework that simplifies building AI applications powered by LLMs. It abstracts away complexity in four key areas: <strong>agents</strong> (autonomous decision-making), <strong>memory</strong> (context retention), <strong>retrieval</strong> (grounding in data), and <strong>chains</strong> (orchestrating multi-step workflows).
+                                    </p>
+                                    <p className="text-blue-100 mb-4 leading-relaxed">
+                                        With LangChain v1 (released October 2025), agents are now built on <strong>LangGraph</strong>—a stateful, graph-based runtime for durable AI workflows. The framework supports all major LLM providers (OpenAI, Anthropic, Google, Groq, Llama) and integrates seamlessly with vector databases and external tools.
+                                    </p>
+                                </div>
+
+                                <div className="bg-blue-900 rounded-lg p-6 md:p-8 shadow-lg border border-cyan-500/20">
+                                    <h3 className="text-2xl font-bold text-cyan-100 mb-4">📊 LangChain Architecture Overview</h3>
+                                    <img src="https://agi-prod-file-upload-public-main-use1.s3.amazonaws.com/f424d47d-f0a4-4f60-8dfa-c034cb1d6a84" alt="LangChain Architecture Diagram showing Application Layer, LangChain Orchestration Layer, and Integration Layer" className="w-full rounded-lg border-2 border-cyan-300 shadow-md" />
+                                    <p className="text-blue-100 mt-4 text-sm leading-relaxed">
+                                        The diagram illustrates the three-tier LangChain architecture: The <strong>Application Layer</strong> contains user-facing components (Chatbots, RAG, Agents). The <strong>LangChain Orchestration Layer</strong> orchestrates Models/LLMs, Prompts/Templates, Chains, Memory, Retrievers/Indexes, Tools, and Agents. The <strong>Integration Layer</strong> provides seamless connectivity to LLM Providers (OpenAI, Anthropic, etc.), Vector Stores (Pinecone, Weaviate), Data Sources (APIs, databases), and external APIs.
+                                    </p>
+                                </div>
+
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="bg-blue-900 rounded-lg p-6 shadow-lg border-l-4 border-cyan-400">
+                                        <h3 className="text-xl font-bold text-cyan-100 mb-3">🎯 Core Problems Solved</h3>
+                                        <ul className="space-y-2 text-blue-100">
+                                            <li>✓ Hallucinations (false confident outputs)</li>
+                                            <li>✓ Context window exhaustion</li>
+                                            <li>✓ Multi-step reasoning & tool use</li>
+                                            <li>✓ Persistent state & memory loss</li>
+                                            <li>✓ Prompt engineering complexity</li>
+                                            <li>✓ Information retrieval at scale</li>
+                                        </ul>
+                                    </div>
+
+                                    <div className="bg-blue-900 rounded-lg p-6 shadow-lg border-l-4 border-emerald-400">
+                                        <h3 className="text-xl font-bold text-cyan-100 mb-3">🚀 Key Capabilities</h3>
+                                        <ul className="space-y-2 text-blue-100">
+                                            <li>✓ Agents with function calling & tools</li>
+                                            <li>✓ RAG (Retrieval-Augmented Generation)</li>
+                                            <li>✓ Multi-turn memory & state management</li>
+                                            <li>✓ Prompt templates & optimization</li>
+                                            <li>✓ Document processing & embeddings</li>
+                                            <li>✓ Observability (LangSmith)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Limitations Tab */}
+                        {activeTab === 'limitations' && (
+                            <div className="space-y-6">
+                                {/* Selection Buttons */}
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    {limitations.map((lim, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedLimitation(idx)}
+                                            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                                selectedLimitation === idx
+                                                    ? 'bg-red-600 text-white shadow-lg border border-red-400'
+                                                    : 'bg-blue-800 text-blue-100 border-2 border-red-500/30 hover:border-red-500/60'
+                                            }`}
+                                        >
+                                            {idx + 1}. {lim.title.split(' ')[0]}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Detailed View */}
+                                <div className="bg-blue-900 rounded-lg p-8 shadow-lg limitation-card border-cyan-500/20">
+                                    <h3 className="text-2xl font-bold text-cyan-100 mb-2">
+                                        {limitations[selectedLimitation].title}
+                                    </h3>
+                                    <p className="text-slate-300 text-lg mb-6 italic">
+                                        {limitations[selectedLimitation].description}
+                                    </p>
+
+                                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                        <div className="bg-red-900/30 rounded-lg p-4 border-l-4 border-red-500">
+                                            <h4 className="font-bold text-red-400 mb-2">Problem</h4>
+                                            <p className="text-blue-100">{limitations[selectedLimitation].problem}</p>
+                                        </div>
+                                        <div className="bg-orange-900/30 rounded-lg p-4 border-l-4 border-orange-500">
+                                            <h4 className="font-bold text-orange-400 mb-2">Impact</h4>
+                                            <p className="text-blue-100">{limitations[selectedLimitation].impact}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-900/30 rounded-lg p-4 border-l-4 border-blue-400 mb-6">
+                                        <h4 className="font-bold text-blue-300 mb-2">Real-World Example</h4>
+                                        <p className="text-blue-100">{limitations[selectedLimitation].example}</p>
+                                    </div>
+
+                                    {selectedLimitation === 0 && (
+                                        <div className="bg-blue-800 p-4 rounded-lg border border-cyan-500/30">
+                                            <h4 className="font-bold text-cyan-100 mb-3">Context Window Visualization</h4>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between text-sm text-blue-100">
+                                                    <span>Tokens Used: {tokenUsage}%</span>
+                                                    <span>{Math.round(tokenUsage * 4096 / 100)} / 4096 tokens</span>
+                                                </div>
+                                                <div className="token-meter">
+                                                    <div className="token-fill" style={{ width: `${tokenUsage}%` }}></div>
+                                                </div>
+                                                <p className="text-xs text-blue-300 mt-2">Token limit reached → Model loses earlier context → Hallucinations increase</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* LangChain Solution Card */}
+                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-8 shadow-lg solution-card border-l-4 border-green-500">
+                                    <h3 className="text-2xl font-bold text-green-700 mb-4">
+                                        ✨ LangChain Solution
+                                    </h3>
+                                    <p className="text-blue-100 leading-relaxed">
+                                        {limitations[selectedLimitation].langchainSolution}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Solutions Tab */}
+                        {activeTab === 'solutions' && (
+                            <div className="space-y-6">
+                                {langchainFeatures.map((feature, idx) => (
+                                    <div key={idx} className="bg-blue-900 rounded-lg p-6 md:p-8 shadow-lg border border-cyan-500/20">
+                                        <h3 className="text-2xl font-bold text-cyan-100 mb-4 flex items-center gap-2">
+                                            <span className="text-emerald-400">▶</span> {feature.category}
+                                        </h3>
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            {feature.features.map((f, fidx) => (
+                                                <div key={fidx} className="bg-gradient-to-br from-blue-800/50 to-blue-900/50 rounded-lg p-4 border-l-4 border-cyan-400">
+                                                    <h4 className="font-bold text-cyan-100 mb-1">{f.name}</h4>
+                                                    <p className="text-sm text-blue-100">{f.desc}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Version Info */}
+                                <div className="bg-blue-900 rounded-lg p-6 border-2 border-cyan-400 mt-6">
+                                    <h3 className="text-xl font-bold text-cyan-100 mb-3">📦 LangChain v1 Highlights</h3>
+                                    <ul className="space-y-2 text-blue-100">
+                                        <li>• <strong>Unified Agent API:</strong> create_agent() replaces legacy patterns (create_react_agent, etc.)</li>
+                                        <li>• <strong>Standard Content Blocks:</strong> Structured outputs (text, reasoning, citations, tool_calls) across all models</li>
+                                        <li>• <strong>LangGraph Foundation:</strong> Agents now built on graph-based runtime for stateful, durable execution</li>
+                                        <li>• <strong>Middleware Hooks:</strong> Inject custom logic before/after model calls, tool invocations, and error handling</li>
+                                        <li>• <strong>Multimodal Support:</strong> Handle images, video, files, and mixed modalities</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Architecture Tab */}
+                        {activeTab === 'architecture' && (
+                            <div className="space-y-6">
+                                <div className="bg-blue-900 rounded-lg p-8 shadow-lg border border-cyan-500/20">
+                                    <h2 className="text-3xl font-bold text-cyan-100 mb-6">
+                                        🏗️ LangChain Agent Architecture Flow
+                                    </h2>
+                                    <p className="text-blue-100 mb-6 leading-relaxed">
+                                        A production LangChain agent follows this 10-step pipeline to handle complex queries while minimizing hallucinations and managing context efficiently.
+                                    </p>
+
+                                    {/* Flow Diagram */}
+                                    <div className="architecture-box">
+                                        {architectureFlow.map((item, idx) => (
+                                            <div key={idx}>
+                                                <div className="flex items-start gap-4 p-3 bg-blue-800 rounded-lg border-2 border-cyan-400 shadow-sm">
+                                                    <div className="flex-shrink-0 w-12 h-12 bg-cyan-500 text-blue-950 rounded-full flex items-center justify-center font-bold text-sm">
+                                                        {item.step.split('.')[0]}
+                                                    </div>
+                                                    <div className="flex-grow">
+                                                        <h4 className="font-bold text-cyan-100">{item.step}</h4>
+                                                        <p className="text-sm text-blue-100">{item.desc}</p>
+                                                    </div>
+                                                </div>
+                                                {idx < architectureFlow.length - 1 && (
+                                                    <div className="flow-arrow">↓</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Key Components */}
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="bg-blue-900 rounded-lg p-6 shadow-lg border-t-4 border-purple-400">
+                                        <h3 className="text-xl font-bold text-purple-300 mb-4">🧠 Memory Management</h3>
+                                        <div className="space-y-3 text-blue-100">
+                                            <div>
+                                                <strong>Short-term (Session):</strong> ConversationBufferMemory tracks recent turns
+                                            </div>
+                                            <div>
+                                                <strong>Long-term:</strong> Vector DB stores embeddings for semantic search across sessions
+                                            </div>
+                                            <div>
+                                                <strong>Compression:</strong> ConversationSummaryMemory summarizes old turns to preserve space
+                                            </div>
+                                            <div>
+                                                <strong>Persistence:</strong> Checkpointers save state across conversations
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-900 rounded-lg p-6 shadow-lg border-t-4 border-orange-400">
+                                        <h3 className="text-xl font-bold text-orange-300 mb-4">🔍 Retrieval-Augmented Generation</h3>
+                                        <div className="space-y-3 text-blue-100">
+                                            <div>
+                                                <strong>Indexing:</strong> Document loaders + RecursiveCharacterSplitter create chunks
+                                            </div>
+                                            <div>
+                                                <strong>Embedding:</strong> Convert chunks to embeddings (OpenAI, Hugging Face, etc.)
+                                            </div>
+                                            <div>
+                                                <strong>Storage:</strong> Index in vector DBs (Pinecone, Chroma, Weaviate, Postgres)
+                                            </div>
+                                            <div>
+                                                <strong>Retrieval:</strong> Semantic search to find top-k relevant chunks at query time
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-900 rounded-lg p-6 shadow-lg border-t-4 border-green-400">
+                                        <h3 className="text-xl font-bold text-green-300 mb-4">🤖 Agent & Tools</h3>
+                                        <div className="space-y-3 text-blue-100">
+                                            <div>
+                                                <strong>Function Calling:</strong> Model decides which tools to invoke
+                                            </div>
+                                            <div>
+                                                <strong>Tool Library:</strong> Web search, calculator, APIs, custom Python functions
+                                            </div>
+                                            <div>
+                                                <strong>ReAct Pattern:</strong> Reason → Act → Observe → Iterate
+                                            </div>
+                                            <div>
+                                                <strong>Orchestration:</strong> LangGraph manages edges, states, and conditional routing
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-900 rounded-lg p-6 shadow-lg border-t-4 border-pink-400">
+                                        <h3 className="text-xl font-bold text-pink-300 mb-4">📝 Prompt Engineering</h3>
+                                        <div className="space-y-3 text-blue-100">
+                                            <div>
+                                                <strong>Templates:</strong> Parameterized prompts eliminate repetition
+                                            </div>
+                                            <div>
+                                                <strong>Few-Shot:</strong> In-context examples guide behavior without fine-tuning
+                                            </div>
+                                            <div>
+                                                <strong>CoT:</strong> Chain-of-Thought forces step-by-step reasoning
+                                            </div>
+                                            <div>
+                                                <strong>Parsing:</strong> Structure outputs to JSON, Pydantic, or custom formats
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* LangGraph State Management */}
+                                <div className="bg-gradient-to-r from-indigo-900/40 to-blue-900/40 rounded-lg p-8 shadow-lg border-l-4 border-indigo-400">
+                                    <h3 className="text-2xl font-bold text-indigo-300 mb-4">🔗 LangGraph: Stateful Agent Execution</h3>
+                                    <p className="text-blue-100 mb-4">
+                                        LangGraph provides the runtime foundation for LangChain v1 agents. It enables:
+                                    </p>
+                                    <ul className="space-y-2 text-blue-100">
+                                        <li>• <strong>Nodes:</strong> Discrete steps (LLM calls, tool execution, human approval)</li>
+                                        <li>• <strong>Edges:</strong> Conditional routing based on model output or tool results</li>
+                                        <li>• <strong>Checkpointing:</strong> Save state at every step for resumable, persistent conversations</li>
+                                        <li>• <strong>Store:</strong> User-specific and application-level data across multiple sessions</li>
+                                        <li>• <strong>Parallelization:</strong> Run multiple branches concurrently for efficiency</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="max-w-6xl mx-auto mt-12 text-center text-blue-300 pb-8">
+                        <p className="text-sm">
+                            Built for educators and AI developers. Updated for LangChain v1 (October 2025) and LangGraph v2.
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<LLMExplorer />, document.getElementById('root'));
+    </script>
+</body>
+</html>
