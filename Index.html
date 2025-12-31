@@ -18,9 +18,9 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0c1e3d 0%, #1a3a52 100%);
+            background: linear-gradient(135deg, #0a1929 0%, #1a3a5c 100%);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            color: #e0e8f0;
+            color: #e0f2ff;
         }
 
         .gradient-text {
@@ -338,7 +338,7 @@
                                     <h3 className="text-2xl font-bold text-cyan-100 mb-2">
                                         {limitations[selectedLimitation].title}
                                     </h3>
-                                    <p className="text-slate-300 text-lg mb-6 italic">
+                                    <p className="text-blue-100 text-lg mb-6 italic">
                                         {limitations[selectedLimitation].description}
                                     </p>
 
@@ -353,8 +353,8 @@
                                         </div>
                                     </div>
 
-                                    <div className="bg-blue-900/30 rounded-lg p-4 border-l-4 border-blue-400 mb-6">
-                                        <h4 className="font-bold text-blue-300 mb-2">Real-World Example</h4>
+                                    <div className="bg-blue-800/30 rounded-lg p-4 border-l-4 border-blue-400 mb-6">
+                                        <h4 className="font-bold text-blue-200 mb-2">Real-World Example</h4>
                                         <p className="text-blue-100">{limitations[selectedLimitation].example}</p>
                                     </div>
 
@@ -369,7 +369,7 @@
                                                 <div className="token-meter">
                                                     <div className="token-fill" style={{ width: `${tokenUsage}%` }}></div>
                                                 </div>
-                                                <p className="text-xs text-blue-300 mt-2">Token limit reached → Model loses earlier context → Hallucinations increase</p>
+                                                <p className="text-xs text-blue-400 mt-2">Token limit reached → Model loses earlier context → Hallucinations increase</p>
                                             </div>
                                         </div>
                                     )}
@@ -397,7 +397,7 @@
                                         </h3>
                                         <div className="grid md:grid-cols-2 gap-4">
                                             {feature.features.map((f, fidx) => (
-                                                <div key={fidx} className="bg-gradient-to-br from-blue-800/50 to-blue-900/50 rounded-lg p-4 border-l-4 border-cyan-400">
+                                                <div key={fidx} className="bg-gradient-to-br from-cyan-900/40 to-blue-800/40 rounded-lg p-4 border-l-4 border-cyan-400">
                                                     <h4 className="font-bold text-cyan-100 mb-1">{f.name}</h4>
                                                     <p className="text-sm text-blue-100">{f.desc}</p>
                                                 </div>
@@ -407,7 +407,7 @@
                                 ))}
 
                                 {/* Version Info */}
-                                <div className="bg-blue-900 rounded-lg p-6 border-2 border-cyan-400 mt-6">
+                                <div className="bg-blue-800 rounded-lg p-6 border-2 border-cyan-400 mt-6">
                                     <h3 className="text-xl font-bold text-cyan-100 mb-3">📦 LangChain v1 Highlights</h3>
                                     <ul className="space-y-2 text-blue-100">
                                         <li>• <strong>Unified Agent API:</strong> create_agent() replaces legacy patterns (create_react_agent, etc.)</li>
